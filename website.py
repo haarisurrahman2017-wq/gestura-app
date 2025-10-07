@@ -40,7 +40,7 @@ voice_enabled = st.sidebar.toggle("🔊 Enable Voice", value=True)
 def speak_phrase(phrase):
     if voice_enabled and phrase:
         try:
-            subprocess.Popen(["espeak-ng", phrase])
+            subprocess.Popen(["espeak", phrase])
         except FileNotFoundError:
             st.warning("⚠️ 'espeak' not found. Please install it using: sudo apt install espeak")
 
