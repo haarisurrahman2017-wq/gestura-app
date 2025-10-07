@@ -7,29 +7,13 @@ import tempfile
 import os
 import time
 
-# ----------------------------------------
-# 🌟 PAGE CONFIGURATION
-# ----------------------------------------
-st.set_page_config(page_title="Team Gestura 🤟", layout="wide", page_icon="🤟")
-
-st.markdown(
-    """
-    <style>
-        .stApp { background-color: #f8f9fa; }
-        h1, h2, h3 { color: #1e1e1e; }
-        footer {visibility: hidden;}
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
-
+# --- Page Setup ---
+st.set_page_config(page_title="Team Gestura 🤟", layout="wide")
 st.image("Black.png", width=150)
 st.title("🤟 Team Gestura")
-st.markdown("### AI-powered ASL Gesture Recognition using YOLOv8")
+st.markdown("### ASL Gesture Detection using YOLOv8")
 
-# ----------------------------------------
-# ⚙️ MODEL LOADING
-# ----------------------------------------
+# --- Load Model ---
 MODEL_PATH = "best.pt"
 
 @st.cache_resource
@@ -43,29 +27,25 @@ def load_model():
 
 model = load_model()
 
-# ----------------------------------------
-# 🧭 SIDEBAR NAVIGATION
-# ----------------------------------------
+# --- Sidebar Navigation ---
 st.sidebar.title("🧭 Navigation")
 page = st.sidebar.radio("Go to:", ["📊 Dashboard", "🤟 Detection", "⭐ Rate Us"])
 
+# --- Sidebar Settings ---
 st.sidebar.header("⚙️ Settings")
 confidence = st.sidebar.slider("Confidence Threshold", 0.0, 1.0, 0.5, 0.05)
 voice_enabled = st.sidebar.toggle("🔊 Enable Voice", value=True)
 
-# ----------------------------------------
-# 🗣️ Helper Functions
-# ----------------------------------------
+# --- Helper: Voice Function ---
 def speak_phrase(phrase):
     if voice_enabled and phrase:
         subprocess.Popen(["say", phrase])
 
+# --- Helper: FPS Calculation ---
 def calculate_fps(start_time, end_time):
     return round(1 / (end_time - start_time), 2) if (end_time - start_time) > 0 else 0
 
-# ----------------------------------------
-# 📊 DASHBOARD PAGE
-# ----------------------------------------
+# --- Dashboard Page ---
 if page == "📊 Dashboard":
     st.header("📊 Detection Dashboard")
     st.markdown("#### Overview of your ASL gesture detection performance")
@@ -77,119 +57,86 @@ if page == "📊 Dashboard":
 
     st.info("""
     👋 **Welcome to the Team Gestura Dashboard!**
-
+    
     Once you start detection, live metrics will appear here automatically.
     You can monitor FPS, total detections, and system performance.
     """)
+ # st.image("Black.png", caption="Team Gestura Logo", width=200)
 
     st.markdown("---")
     st.caption("📈 Real-time dashboard updates when detection is running.")
 
-# ----------------------------------------
-# 🤟 DETECTION PAGE
-# ----------------------------------------
+# --- Detection Page ---
 elif page == "🤟 Detection":
     st.header("🤟 ASL Gesture Detection")
+
     mode = st.radio("Select Input Mode", ["📷 Webcam", "🖼️ Image", "🎞️ Video"])
 
-    # -------------------
-    # 📷 WEBCAM MODE
-    # -------------------
+    # Webcam Mode
     if mode == "📷 Webcam":
-        st.markdown("#### 🎥 Real-Time Detection (Webcam)")
+        run_webcam = st.toggle("🎥 Start Real-Time Detection")
+        FRAME_WINDOW = st.image([])
+        fps_placeholder = st.empty()
+        time_placeholder = st.empty()
 
-        # Use browser camera if no direct webcam access
-        if os.environ.get("STREAMLIT_RUNTIME") == "cloud" or not os.path.exists("/dev/video0"):
-            st.warning("⚠️ Local webcam access unavailable. Using browser camera instead.")
-            img_data = st.camera_input("📸 Capture a gesture")
+        if run_webcam:
+            cap = cv2.VideoCapture(0)
+            if not cap.isOpened():
+                st.error("❌ Could not access webcam.")
+            else:
+                st.success("✅ Webcam active! Detecting gestures in real time...")
 
-            if img_data is not None:
-                file_bytes = np.asarray(bytearray(img_data.read()), dtype=np.uint8)
-                frame = cv2.imdecode(file_bytes, 1)
+            last_phrase = ""
+            gesture_count = 0
+            total_time = 0
+            total_frames = 0
 
+            while run_webcam:
                 start_time = time.time()
-                results = model(frame, conf=confidence, verbose=False)
-                end_time = time.time()
 
+                ret, frame = cap.read()
+                if not ret:
+                    st.error("❌ Failed to capture frame.")
+                    break
+
+                frame = cv2.flip(frame, 1)
+                results = model(frame, conf=confidence, verbose=False)
                 annotated_frame = results[0].plot()
-                detected_labels = [model.names[int(b.cls)] for b in results[0].boxes]
+
+                detected_labels = []
+                for box in results[0].boxes:
+                    cls_id = int(box.cls)
+                    detected_labels.append(model.names[cls_id])
+
+                end_time = time.time()
                 fps = calculate_fps(start_time, end_time)
                 detection_time = round(end_time - start_time, 3)
+                total_frames += 1
+                total_time += detection_time
 
-                st.image(annotated_frame, channels="BGR", caption=f"Processed in {detection_time}s (FPS: {fps})")
+                fps_placeholder.markdown(f"**FPS:** {fps}")
+                time_placeholder.markdown(f"**Detection Time:** {detection_time}s")
 
                 if detected_labels:
                     phrase = ", ".join(set(detected_labels))
-                    st.success(f"Detected: {phrase}")
-                    speak_phrase(f"Detected {phrase}")
-                else:
-                    st.warning("No gestures detected.")
+                    if phrase != last_phrase:
+                        gesture_count += 1
+                        speak_phrase(f"Detected {phrase}")
+                        last_phrase = phrase
+                        st.session_state.last_phrase = phrase
+
+                FRAME_WINDOW.image(annotated_frame, channels="BGR")
+
+            cap.release()
+
+            avg_fps = round(total_frames / total_time, 2) if total_time > 0 else 0
+            st.success(f"✅ Detection finished. Average FPS: {avg_fps}, Total Gestures: {gesture_count}")
         else:
-            # Local webcam (desktop app)
-            run_webcam = st.toggle("🎥 Start Real-Time Detection")
-            FRAME_WINDOW = st.image([])
-            fps_placeholder = st.empty()
-            time_placeholder = st.empty()
+            st.info("☝️ Click 'Start Real-Time Detection' to begin gesture recognition.")
 
-            if run_webcam:
-                cap = cv2.VideoCapture(0)
-                if not cap.isOpened():
-                    st.error("❌ Could not access webcam.")
-                else:
-                    st.success("✅ Webcam active! Detecting gestures in real time...")
-
-                last_phrase = ""
-                gesture_count = 0
-                total_time = 0
-                total_frames = 0
-
-                while run_webcam:
-                    start_time = time.time()
-                    ret, frame = cap.read()
-                    if not ret:
-                        st.error("❌ Failed to capture frame.")
-                        break
-
-                    frame = cv2.flip(frame, 1)
-                    results = model(frame, conf=confidence, verbose=False)
-                    annotated_frame = results[0].plot()
-
-                    detected_labels = []
-                    for box in results[0].boxes:
-                        cls_id = int(box.cls)
-                        detected_labels.append(model.names[cls_id])
-
-                    end_time = time.time()
-                    fps = calculate_fps(start_time, end_time)
-                    detection_time = round(end_time - start_time, 3)
-                    total_frames += 1
-                    total_time += detection_time
-
-                    fps_placeholder.markdown(f"**FPS:** {fps}")
-                    time_placeholder.markdown(f"**Detection Time:** {detection_time}s")
-
-                    if detected_labels:
-                        phrase = ", ".join(set(detected_labels))
-                        if phrase != last_phrase:
-                            gesture_count += 1
-                            speak_phrase(f"Detected {phrase}")
-                            last_phrase = phrase
-                            st.session_state.last_phrase = phrase
-
-                    FRAME_WINDOW.image(annotated_frame, channels="BGR")
-
-                cap.release()
-                avg_fps = round(total_frames / total_time, 2) if total_time > 0 else 0
-                st.success(f"✅ Detection finished. Average FPS: {avg_fps}, Total Gestures: {gesture_count}")
-            else:
-                st.info("☝️ Click 'Start Real-Time Detection' to begin gesture recognition.")
-
-    # -------------------
-    # 🖼️ IMAGE MODE
-    # -------------------
+    # Image Mode
     elif mode == "🖼️ Image":
-        st.markdown("#### 🖼️ Upload an Image for Detection")
-        uploaded_image = st.file_uploader("Upload Image", type=["jpg", "jpeg", "png"])
+        uploaded_image = st.file_uploader("Upload an Image", type=["jpg", "jpeg", "png"])
         if uploaded_image:
             file_bytes = np.asarray(bytearray(uploaded_image.read()), dtype=np.uint8)
             image = cv2.imdecode(file_bytes, 1)
@@ -201,7 +148,7 @@ elif page == "🤟 Detection":
 
             annotated = results[0].plot()
             detected_labels = [model.names[int(box.cls)] for box in results[0].boxes]
-            st.image(annotated, channels="BGR", caption=f"Processed in {detection_time}s")
+            st.image(annotated, channels="BGR", caption=f"Detected in {detection_time}s")
 
             if detected_labels:
                 phrase = ", ".join(set(detected_labels))
@@ -210,19 +157,16 @@ elif page == "🤟 Detection":
             else:
                 st.warning("No gestures detected.")
 
-    # -------------------
-    # 🎞️ VIDEO MODE
-    # -------------------
+    # Video Mode
     elif mode == "🎞️ Video":
-        st.markdown("#### 🎞️ Upload a Video for Gesture Detection")
-        uploaded_video = st.file_uploader("Upload Video", type=["mp4", "mov", "avi"])
+        uploaded_video = st.file_uploader("Upload a Video", type=["mp4", "mov", "avi"])
         if uploaded_video:
             temp_dir = tempfile.NamedTemporaryFile(delete=False)
             temp_dir.write(uploaded_video.read())
             temp_dir.close()
 
             cap = cv2.VideoCapture(temp_dir.name)
-            stframe = st.image([])
+            stframe = st.empty()
             fps_placeholder = st.empty()
             time_placeholder = st.empty()
             st.success("✅ Processing video...")
@@ -244,11 +188,13 @@ elif page == "🤟 Detection":
 
                 fps = calculate_fps(start_time, end_time)
                 detection_time = round(end_time - start_time, 3)
+
                 total_frames += 1
                 total_time += detection_time
 
                 fps_placeholder.markdown(f"**FPS:** {fps}")
                 time_placeholder.markdown(f"**Frame Detection Time:** {detection_time}s")
+
                 stframe.image(annotated_frame, channels="BGR")
 
                 for box in results[0].boxes:
@@ -268,9 +214,7 @@ elif page == "🤟 Detection":
             else:
                 st.warning("No gestures detected.")
 
-# ----------------------------------------
-# ⭐ RATE US PAGE
-# ----------------------------------------
+# --- Rate Us Page ---
 elif page == "⭐ Rate Us":
     st.header("⭐ Rate Team Gestura")
     st.markdown("We’d love your feedback! How was your experience using our ASL detection app?")
@@ -287,3 +231,4 @@ elif page == "⭐ Rate Us":
 
     st.markdown("---")
     st.caption("Developed by Team Gestura 💙")
+
