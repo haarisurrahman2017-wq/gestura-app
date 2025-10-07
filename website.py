@@ -39,7 +39,10 @@ voice_enabled = st.sidebar.toggle("🔊 Enable Voice", value=True)
 # --- Helper: Voice Function ---
 def speak_phrase(phrase):
     if voice_enabled and phrase:
-        subprocess.Popen(["say", phrase])
+        try:
+            subprocess.Popen(["espeak", phrase])
+        except FileNotFoundError:
+            st.warning("⚠️ 'espeak' not found. Please install it using: sudo apt install espeak")
 
 # --- Helper: FPS Calculation ---
 def calculate_fps(start_time, end_time):
@@ -72,67 +75,97 @@ elif page == "🤟 Detection":
 
     mode = st.radio("Select Input Mode", ["📷 Webcam", "🖼️ Image", "🎞️ Video"])
 
-    # Webcam Mode
+        # Webcam Mode
     if mode == "📷 Webcam":
-        run_webcam = st.toggle("🎥 Start Real-Time Detection")
-        FRAME_WINDOW = st.image([])
-        fps_placeholder = st.empty()
-        time_placeholder = st.empty()
+        st.markdown("#### 🎥 Real-Time Detection (Webcam)")
 
-        if run_webcam:
-            cap = cv2.VideoCapture(0)
-            if not cap.isOpened():
-                st.error("❌ Could not access webcam.")
-            else:
-                st.success("✅ Webcam active! Detecting gestures in real time...")
+        # Detect if running in a hosted environment (no webcam device)
+        if os.environ.get("STREAMLIT_RUNTIME") == "cloud" or not os.path.exists("/dev/video0"):
+            st.warning("⚠️ Local webcam access is not available here. Using browser camera instead.")
+            img_data = st.camera_input("Capture a gesture")
 
-            last_phrase = ""
-            gesture_count = 0
-            total_time = 0
-            total_frames = 0
+            if img_data is not None:
+                file_bytes = np.asarray(bytearray(img_data.read()), dtype=np.uint8)
+                frame = cv2.imdecode(file_bytes, 1)
 
-            while run_webcam:
                 start_time = time.time()
-
-                ret, frame = cap.read()
-                if not ret:
-                    st.error("❌ Failed to capture frame.")
-                    break
-
-                frame = cv2.flip(frame, 1)
                 results = model(frame, conf=confidence, verbose=False)
-                annotated_frame = results[0].plot()
-
-                detected_labels = []
-                for box in results[0].boxes:
-                    cls_id = int(box.cls)
-                    detected_labels.append(model.names[cls_id])
-
                 end_time = time.time()
+
+                annotated_frame = results[0].plot()
+                detected_labels = [model.names[int(b.cls)] for b in results[0].boxes]
                 fps = calculate_fps(start_time, end_time)
                 detection_time = round(end_time - start_time, 3)
-                total_frames += 1
-                total_time += detection_time
 
-                fps_placeholder.markdown(f"**FPS:** {fps}")
-                time_placeholder.markdown(f"**Detection Time:** {detection_time}s")
+                st.image(annotated_frame, channels="BGR", caption=f"Processed in {detection_time}s (FPS: {fps})")
 
                 if detected_labels:
                     phrase = ", ".join(set(detected_labels))
-                    if phrase != last_phrase:
-                        gesture_count += 1
-                        speak_phrase(f"Detected {phrase}")
-                        last_phrase = phrase
-                        st.session_state.last_phrase = phrase
-
-                FRAME_WINDOW.image(annotated_frame, channels="BGR")
-
-            cap.release()
-
-            avg_fps = round(total_frames / total_time, 2) if total_time > 0 else 0
-            st.success(f"✅ Detection finished. Average FPS: {avg_fps}, Total Gestures: {gesture_count}")
+                    st.success(f"Detected: {phrase}")
+                    speak_phrase(f"Detected {phrase}")
+                else:
+                    st.warning("No gestures detected.")
         else:
-            st.info("☝️ Click 'Start Real-Time Detection' to begin gesture recognition.")
+            
+            # Local webcam version (for desktop app use)
+            run_webcam = st.toggle("🎥 Start Real-Time Detection")
+            FRAME_WINDOW = st.image([])
+            fps_placeholder = st.empty()
+            time_placeholder = st.empty()
+
+            if run_webcam:
+                cap = cv2.VideoCapture(0)
+                if not cap.isOpened():
+                    st.error("❌ Could not access webcam.")
+                else:
+                    st.success("✅ Webcam active! Detecting gestures in real time...")
+
+                last_phrase = ""
+                gesture_count = 0
+                total_time = 0
+                total_frames = 0
+
+                while run_webcam:
+                    start_time = time.time()
+                    ret, frame = cap.read()
+                    if not ret:
+                        st.error("❌ Failed to capture frame.")
+                        break
+
+                    frame = cv2.flip(frame, 1)
+                    results = model(frame, conf=confidence, verbose=False)
+                    annotated_frame = results[0].plot()
+
+                    detected_labels = []
+                    for box in results[0].boxes:
+                        cls_id = int(box.cls)
+                        detected_labels.append(model.names[cls_id])
+
+                    end_time = time.time()
+                    fps = calculate_fps(start_time, end_time)
+                    detection_time = round(end_time - start_time, 3)
+                    total_frames += 1
+                    total_time += detection_time
+
+                    fps_placeholder.markdown(f"**FPS:** {fps}")
+                    time_placeholder.markdown(f"**Detection Time:** {detection_time}s")
+
+                    if detected_labels:
+                        phrase = ", ".join(set(detected_labels))
+                        if phrase != last_phrase:
+                            gesture_count += 1
+                            speak_phrase(f"Detected {phrase}")
+                            last_phrase = phrase
+                            st.session_state.last_phrase = phrase
+
+                    FRAME_WINDOW.image(annotated_frame, channels="BGR")
+
+                cap.release()
+
+                avg_fps = round(total_frames / total_time, 2) if total_time > 0 else 0
+                st.success(f"✅ Detection finished. Average FPS: {avg_fps}, Total Gestures: {gesture_count}")
+            else:
+                st.info("☝️ Click 'Start Real-Time Detection' to begin gesture recognition.")
 
     # Image Mode
     elif mode == "🖼️ Image":
