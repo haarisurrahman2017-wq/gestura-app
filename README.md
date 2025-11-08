@@ -155,12 +155,3 @@ This project is licensed under the MIT License.
 
 ---
 
-If you want, I can also **generate a ready-to-use `requirements.txt`** with all packages needed to run this app on **Streamlit Cloud**.
-
-Do you want me to do that next?
-
----
-
-**Team Gestura 💙 – Breaking barriers, one gesture at a time!**
-
----
