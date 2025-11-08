@@ -65,7 +65,7 @@ if page == "📊 Dashboard":
     col3.metric("🧠 Model Confidence", f"{confidence*100:.1f}%")
 
     st.info("""
-    👋 **Welcome to the Team Gestura Dashboard!**  
+    **👋 Welcome to the Team Gestura Dashboard!**  
 
     Once you start detection, live metrics will appear here automatically.
     You can monitor FPS, total detections, and system performance.
