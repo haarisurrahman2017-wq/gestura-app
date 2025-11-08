@@ -10,7 +10,7 @@ import platform
 # --- Page Setup ---
 st.set_page_config(page_title="Team Gestura 🤟", layout="wide")
 st.image("Black.png", width=150)
-st.title("🤟 Team Gestura")
+st.title("Team Gestura")
 st.markdown("### ASL Gesture Detection using YOLOv8")
 
 # --- Load Model ---
