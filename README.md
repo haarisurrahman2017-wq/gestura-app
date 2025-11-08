@@ -1,6 +1,7 @@
+
 ---
 
-#Team Gestura 🤟 – ASL Gesture Detection Web App
+# Team Gestura 🤟 – ASL Gesture Detection Web App
 
 **Breaking Barriers, One Gesture at a Time**
 
@@ -147,6 +148,16 @@ Contributions are welcome! You can:
 ## License
 
 This project is licensed under the MIT License.
+
+---
+
+**Team Gestura 💙 – Breaking barriers, one gesture at a time!**
+
+---
+
+If you want, I can also **generate a ready-to-use `requirements.txt`** with all packages needed to run this app on **Streamlit Cloud**.
+
+Do you want me to do that next?
 
 ---
 
