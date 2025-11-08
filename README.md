@@ -147,7 +147,7 @@ Contributions are welcome! You can:
 
 ## License
 
-This project is licensed under the MIT License.
+This project is a open source anybody can acess and develop it for their personal needs.
 
 ---
 
