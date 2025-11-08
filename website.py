@@ -54,7 +54,7 @@ if page == "📊 Dashboard":
     st.markdown("#### Overview of your ASL gesture detection performance")
 
     col1, col2, col3 = st.columns(3)
-    col1.metric("🕒 Average FPS", "30")
+    col1.metric("🕒 Average FPS", "30 FPS")
     col2.metric("✋ Total Gestures Detected", "—")
     col3.metric("🧠 Model Confidence", f"{confidence*100:.1f}%")
 
