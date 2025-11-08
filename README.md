@@ -1,5 +1,3 @@
-Absolutely! Here’s a **professional README** for your **Team Gestura ASL Detection app** using Streamlit and YOLOv8. I’ve structured it with clear sections so it’s suitable for GitHub or deployment documentation.
-
 ---
 
 # Team Gestura 🤟 – ASL Gesture Detection Web App
@@ -155,7 +153,3 @@ This project is licensed under the MIT License.
 **Team Gestura 💙 – Breaking barriers, one gesture at a time!**
 
 ---
-
-If you want, I can also **generate a ready-to-use `requirements.txt`** with all packages needed to run this app on **Streamlit Cloud**.
-
-Do you want me to do that next?
